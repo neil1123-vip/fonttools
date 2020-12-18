@@ -19,7 +19,10 @@ log = logging.getLogger("fontTools.ttLib.woff2")
 
 haveBrotli = False
 try:
-	import brotli
+	try:
+		import brotlicffi as brotli
+	except ImportError:
+		import brotli
 	haveBrotli = True
 except ImportError:
 	pass
@@ -29,7 +32,7 @@ class WOFF2Reader(SFNTReader):
 
 	flavor = "woff2"
 
-	def __init__(self, file, checkChecksums=1, fontNumber=-1):
+	def __init__(self, file, checkChecksums=0, fontNumber=-1):
 		if not haveBrotli:
 			log.error(
 				'The WOFF2 decoder requires the Brotli Python extension, available at: '

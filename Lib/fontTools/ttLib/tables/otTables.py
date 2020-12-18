@@ -11,7 +11,11 @@ from collections import namedtuple
 from fontTools.misc.py23 import *
 from fontTools.misc.fixedTools import otRound
 from fontTools.misc.textTools import pad, safeEval
-from .otBase import BaseTable, FormatSwitchingBaseTable, ValueRecord, CountReference
+from .otBase import (
+	BaseTable, FormatSwitchingBaseTable, ValueRecord, CountReference,
+	getFormatSwitchingBaseTableClass,
+)
+from fontTools.feaLib.lookupDebugInfo import LookupDebugInfo, LOOKUP_DEBUG_INFO_KEY
 import logging
 import struct
 
@@ -1187,6 +1191,44 @@ class COLR(BaseTable):
 		}
 
 
+class LookupList(BaseTable):
+	@property
+	def table(self):
+		for l in self.Lookup:
+			for st in l.SubTable:
+				if type(st).__name__.endswith("Subst"):
+					return "GSUB"
+				if type(st).__name__.endswith("Pos"):
+					return "GPOS"
+		raise ValueError
+
+	def toXML2(self, xmlWriter, font):
+		if not font or "Debg" not in font or LOOKUP_DEBUG_INFO_KEY not in font["Debg"].data:
+			return super().toXML2(xmlWriter, font)
+		debugData = font["Debg"].data[LOOKUP_DEBUG_INFO_KEY][self.table]
+		for conv in self.getConverters():
+			if conv.repeat:
+				value = getattr(self, conv.name, [])
+				for lookupIndex, item in enumerate(value):
+					if str(lookupIndex) in debugData:
+						info = LookupDebugInfo(*debugData[str(lookupIndex)])
+						tag = info.location
+						if info.name:
+							tag = f'{info.name}: {tag}'
+						if info.feature:
+							script,language,feature = info.feature
+							tag = f'{tag} in {feature} ({script}/{language})'
+						xmlWriter.comment(tag)
+						xmlWriter.newline()
+
+					conv.xmlWrite(xmlWriter, font, item, conv.name,
+							[("index", lookupIndex)])
+			else:
+				if conv.aux and not eval(conv.aux, None, vars(self)):
+					continue
+				value = getattr(self, conv.name, None) # TODO Handle defaults instead of defaulting to None!
+				conv.xmlWrite(xmlWriter, font, value, conv.name, [])
+
 class BaseGlyphRecordArray(BaseTable):
 
 	def preWrite(self, font):
@@ -1248,6 +1290,72 @@ class ExtendMode(IntEnum):
 	PAD = 0
 	REPEAT = 1
 	REFLECT = 2
+
+
+# Porter-Duff modes for COLRv1 PaintComposite:
+# https://github.com/googlefonts/colr-gradients-spec/tree/off_sub_1#compositemode-enumeration
+class CompositeMode(IntEnum):
+	CLEAR = 0
+	SRC = 1
+	DEST = 2
+	SRC_OVER = 3
+	DEST_OVER = 4
+	SRC_IN = 5
+	DEST_IN = 6
+	SRC_OUT = 7
+	DEST_OUT = 8
+	SRC_ATOP = 9
+	DEST_ATOP = 10
+	XOR = 11
+	SCREEN = 12
+	OVERLAY = 13
+	DARKEN = 14
+	LIGHTEN = 15
+	COLOR_DODGE = 16
+	COLOR_BURN = 17
+	HARD_LIGHT = 18
+	SOFT_LIGHT = 19
+	DIFFERENCE = 20
+	EXCLUSION = 21
+	MULTIPLY = 22
+	HSL_HUE = 23
+	HSL_SATURATION = 24
+	HSL_COLOR = 25
+	HSL_LUMINOSITY = 26
+
+
+class Paint(getFormatSwitchingBaseTableClass("uint8")):
+
+	class Format(IntEnum):
+		PaintColrLayers = 1
+		PaintSolid = 2
+		PaintLinearGradient = 3
+		PaintRadialGradient = 4
+		PaintGlyph = 5
+		PaintColrGlyph = 6
+		PaintTransform = 7
+		PaintTranslate = 8
+		PaintRotate = 9
+		PaintSkew = 10
+		PaintComposite = 11
+
+	def getFormatName(self):
+		try:
+			return self.__class__.Format(self.Format).name
+		except ValueError:
+			raise NotImplementedError(f"Unknown Paint format: {self.Format}")
+
+	def toXML(self, xmlWriter, font, attrs=None, name=None):
+		tableName = name if name else self.__class__.__name__
+		if attrs is None:
+			attrs = []
+		attrs.append(("Format", self.Format))
+		xmlWriter.begintag(tableName, attrs)
+		xmlWriter.comment(self.getFormatName())
+		xmlWriter.newline()
+		self.toXML2(xmlWriter, font)
+		xmlWriter.endtag(tableName)
+		xmlWriter.newline()
 
 
 # For each subtable format there is a class. However, we don't really distinguish
@@ -1649,7 +1757,11 @@ def _buildClasses():
 		if m:
 			# XxxFormatN subtable, we only add the "base" table
 			name = m.group(1)
-			baseClass = FormatSwitchingBaseTable
+			# the first row of a format-switching otData table describes the Format;
+			# the first column defines the type of the Format field.
+			# Currently this can be either 'uint16' or 'uint8'.
+			formatType = table[0][0]
+			baseClass = getFormatSwitchingBaseTableClass(formatType)
 		if name not in namespace:
 			# the class doesn't exist yet, so the base implementation is used.
 			cls = type(name, (baseClass,), {})
