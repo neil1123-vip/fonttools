@@ -1060,9 +1060,6 @@ def colrv1_path(tmp_path):
 
 
 def test_subset_COLRv1(colrv1_path):
-    # XXX delete me
-    import shutil; shutil.copy(colrv1_path, "/tmp/test-colrv1.ttf")
-
     subset_path = colrv1_path.parent / (colrv1_path.name + ".subset")
 
     subset.main(
