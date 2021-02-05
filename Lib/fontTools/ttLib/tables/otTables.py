@@ -1359,6 +1359,59 @@ class Paint(getFormatSwitchingBaseTableClass("uint8")):
 		xmlWriter.endtag(tableName)
 		xmlWriter.newline()
 
+	_LEAVES = {
+	    PaintFormat.PaintSolid,
+	    PaintFormat.PaintLinearGradient,
+	    PaintFormat.PaintRadialGradient,
+	    PaintFormat.PaintSweepGradient,
+	}
+
+	_HAS_PAINT = {
+		PaintFormat.PaintGlyph,
+		PaintFormat.PaintTransform,
+		PaintFormat.PaintTranslate,
+		PaintFormat.PaintRotate,
+		PaintFormat.PaintSkew,
+	}
+
+	def getChildren(self, colr):
+		if self.Format in self._LEAVES:
+			return []
+
+		if self.Format in self._HAS_PAINT:
+			return [self.Paint]
+
+		if self.Format == PaintFormat.PaintColrLayers:
+			return colr.LayerV1List.Paint[
+				self.FirstLayerIndex : self.FirstLayerIndex + self.NumLayers
+			]
+
+		if self.Format == PaintFormat.PaintColrGlyph:
+			for record in colr.BaseGlyphV1List.BaseGlyphV1Record:
+				if record.BaseGlyph == self.Glyph:
+					return [record.Paint]
+			else:
+				raise KeyError(f"{self.Glyph!r} not in colr.BaseGlyphV1List")
+
+		if self.Format == PaintFormat.PaintComposite:
+			return [self.BackdropPaint, self.SourcePaint]
+
+		raise ValueError(f"Unrecognized Paint format: {self.Format}")
+
+	def traverse(self, colr: COLR, callback):
+		"""Depth-first traversal of graph rooted at self, callback on each node."""
+		if not callable(callback):
+			raise TypeError("callback must be callable")
+		stack = [self]
+		visited = set()
+		while stack:
+			current = stack.pop()
+			if id(current) in visited:
+				continue
+			callback(current)
+			visited.add(id(current))
+			stack.extend(reversed(current.getChildren(colr)))
+
 
 # For each subtable format there is a class. However, we don't really distinguish
 # between "field name" and "format name": often these are the same. Yet there's
