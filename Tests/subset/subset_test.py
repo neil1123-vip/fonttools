@@ -961,18 +961,18 @@ def colrv1_path(tmp_path):
         {
             "uniE000": [
                 {
-                    "format": int(ot.Paint.Format.PaintGlyph),
+                    "format": int(ot.PaintFormat.PaintGlyph),
                     "glyph": "glyph00010",
                     "paint": {
-                        "format": int(ot.Paint.Format.PaintSolid),
+                        "format": int(ot.PaintFormat.PaintSolid),
                         "paletteIndex": 0,
                     },
                 },
                 {
-                    "format": int(ot.Paint.Format.PaintGlyph),
+                    "format": int(ot.PaintFormat.PaintGlyph),
                     "glyph": "glyph00011",
                     "paint": {
-                        "format": int(ot.Paint.Format.PaintSolid),
+                        "format": int(ot.PaintFormat.PaintSolid),
                         "paletteIndex": 2,
                         "alpha": 0.3,
                     },
@@ -980,13 +980,13 @@ def colrv1_path(tmp_path):
             ],
             "uniE001": [
                 {
-                    "format": int(ot.Paint.Format.PaintTransform),
+                    "format": int(ot.PaintFormat.PaintTransform),
                     "transform": (0.7071, 0.7071, -0.7071, 0.7071, 0, 0),
                     "paint": {
-                        "format": int(ot.Paint.Format.PaintGlyph),
+                        "format": int(ot.PaintFormat.PaintGlyph),
                         "glyph": "glyph00012",
                         "paint": {
-                            "format": int(ot.Paint.Format.PaintRadialGradient),
+                            "format": int(ot.PaintFormat.PaintRadialGradient),
                             "c0": (250, 250),
                             "r0": 250,
                             "c1": (200, 200),
@@ -998,10 +998,10 @@ def colrv1_path(tmp_path):
                     },
                 },
                 {
-                    "format": int(ot.Paint.Format.PaintGlyph),
+                    "format": int(ot.PaintFormat.PaintGlyph),
                     "glyph": "glyph00013",
                     "paint": {
-                        "format": int(ot.Paint.Format.PaintSolid),
+                        "format": int(ot.PaintFormat.PaintSolid),
                         "paletteIndex": 1,
                         "alpha": 0.5,
                     },
@@ -1009,35 +1009,35 @@ def colrv1_path(tmp_path):
             ],
             "uniE002": [
                 {
-                    "format": int(ot.Paint.Format.PaintGlyph),
+                    "format": int(ot.PaintFormat.PaintGlyph),
                     "glyph": "glyph00014",
                     "paint": {
-                        "format": int(ot.Paint.Format.PaintLinearGradient),
+                        "format": int(ot.PaintFormat.PaintLinearGradient),
                         "p0": (0, 0),
                         "p1": (500, 500),
                         "colorLine": {"stops": [(0.0, 0), (1.0, 2)]},
                     },
                 },
                 {
-                    "format": int(ot.Paint.Format.PaintTransform),
+                    "format": int(ot.PaintFormat.PaintTransform),
                     "transform": (1, 0, 0, 1, 400, 400),
                     "paint": {
-                        "format": int(ot.Paint.Format.PaintGlyph),
+                        "format": int(ot.PaintFormat.PaintGlyph),
                         "glyph": "glyph00015",
                         "paint": {
-                            "format": int(ot.Paint.Format.PaintSolid),
+                            "format": int(ot.PaintFormat.PaintSolid),
                             "paletteIndex": 1,
                         },
                     },
                 },
             ],
             "uniE003": {
-                "format": int(ot.Paint.Format.PaintRotate),
+                "format": int(ot.PaintFormat.PaintRotate),
                 "angle": 45,
                 "centerX": 250,
                 "centerY": 250,
                 "paint": {
-                    "format": int(ot.Paint.Format.PaintColrGlyph),
+                    "format": int(ot.PaintFormat.PaintColrGlyph),
                     "glyph": "uniE001",
                 },
             },
