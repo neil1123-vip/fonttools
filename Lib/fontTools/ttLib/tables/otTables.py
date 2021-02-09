@@ -1359,28 +1359,7 @@ class Paint(getFormatSwitchingBaseTableClass("uint8")):
 		xmlWriter.endtag(tableName)
 		xmlWriter.newline()
 
-	_LEAVES = {
-	    PaintFormat.PaintSolid,
-	    PaintFormat.PaintLinearGradient,
-	    PaintFormat.PaintRadialGradient,
-	    PaintFormat.PaintSweepGradient,
-	}
-
-	_HAS_PAINT = {
-		PaintFormat.PaintGlyph,
-		PaintFormat.PaintTransform,
-		PaintFormat.PaintTranslate,
-		PaintFormat.PaintRotate,
-		PaintFormat.PaintSkew,
-	}
-
 	def getChildren(self, colr):
-		if self.Format in self._LEAVES:
-			return []
-
-		if self.Format in self._HAS_PAINT:
-			return [self.Paint]
-
 		if self.Format == PaintFormat.PaintColrLayers:
 			return colr.LayerV1List.Paint[
 				self.FirstLayerIndex : self.FirstLayerIndex + self.NumLayers
@@ -1393,10 +1372,12 @@ class Paint(getFormatSwitchingBaseTableClass("uint8")):
 			else:
 				raise KeyError(f"{self.Glyph!r} not in colr.BaseGlyphV1List")
 
-		if self.Format == PaintFormat.PaintComposite:
-			return [self.BackdropPaint, self.SourcePaint]
+		children = []
+		for conv in self.getConverters():
+			if conv.tableClass is not None and issubclass(conv.tableClass, type(self)):
+				children.append(getattr(self, conv.name))
 
-		raise ValueError(f"Unrecognized Paint format: {self.Format}")
+		return children
 
 	def traverse(self, colr: COLR, callback):
 		"""Depth-first traversal of graph rooted at self, callback on each node."""
