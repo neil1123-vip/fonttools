@@ -14,7 +14,7 @@ import sys
 import struct
 import array
 import logging
-from collections import Counter
+from collections import Counter, defaultdict
 from types import MethodType
 
 __usage__ = "pyftsubset font-file [glyph...] [--option=value]..."
@@ -2057,10 +2057,65 @@ def subset_glyphs(self, s):
 	# TODO: also prune ununsed varIndices in COLR.VarStore
 	return bool(layersV0) or bool(self.table.BaseGlyphV1List.BaseGlyphV1Record)
 
-# TODO: prune unused palettes
 @_add_method(ttLib.getTableClass('CPAL'))
 def prune_post_subset(self, font, options):
-	return True
+	colr = font.get("COLR")
+	if not colr:  # drop CPAL if COLR was subsetted to empty
+		return False
+
+	colors_by_index = defaultdict(list)
+
+	def collect_colors_by_index(paint):
+		if hasattr(paint, "Color"):  # either solid colors...
+			colors_by_index[paint.Color.PaletteIndex].append(paint.Color)
+		elif hasattr(paint, "ColorLine"):  # ... or gradient color stops
+			for stop in paint.ColorLine.ColorStop:
+				colors_by_index[stop.Color.PaletteIndex].append(stop.Color)
+
+	if colr.version == 0:
+		for layers in colr.ColorLayers.values():
+			for layer in layers:
+				colors_by_index[layer.colorID].append(layer)
+	else:
+		if colr.table.LayerRecordArray:
+			for layer in colr.table.LayerRecordArray.LayerRecord:
+				colors_by_index[layer.PaletteIndex].append(layer)
+		for record in colr.table.BaseGlyphV1List.BaseGlyphV1Record:
+			record.Paint.traverse(colr.table, collect_colors_by_index)
+
+	used_indices = set(colors_by_index.keys())
+	new_palettes = []
+	index_map = {}
+	for i, palette in enumerate(self.palettes):
+		new_palette = []
+		for j, color in enumerate(palette):
+			if j not in used_indices:
+				continue
+			if i == 0:
+				index_map[j] = len(new_palette)
+			else:
+				# sanity check palettes must have same length
+				assert index_map[j] == len(new_palette)
+			new_palette.append(color)
+		new_palettes.append(new_palette)
+
+	for old_index, new_index in index_map.items():
+		for record in colors_by_index[old_index]:
+			if hasattr(record, "colorID"):  # v0
+				record.colorID = new_index
+			elif hasattr(record, "PaletteIndex"):  # v1
+				record.PaletteIndex = new_index
+			else:
+				raise AssertionError(record)
+
+	self.palettes = new_palettes
+	self.numPaletteEntries = len(self.palettes[0])
+
+	if self.version == 1:
+		self.paletteEntryLabels = [
+			label for i, label in self.paletteEntryLabels if i in used_indices
+		]
+	return bool(self.numPaletteEntries)
 
 @_add_method(otTables.MathGlyphConstruction)
 def closure_glyphs(self, glyphs):
