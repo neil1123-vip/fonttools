@@ -2083,23 +2083,12 @@ def prune_post_subset(self, font, options):
 		for record in colr.table.BaseGlyphV1List.BaseGlyphV1Record:
 			record.Paint.traverse(colr.table, collect_colors_by_index)
 
-	used_indices = set(colors_by_index.keys())
-	new_palettes = []
-	index_map = {}
-	for i, palette in enumerate(self.palettes):
-		new_palette = []
-		for j, color in enumerate(palette):
-			if j not in used_indices:
-				continue
-			if i == 0:
-				index_map[j] = len(new_palette)
-			else:
-				# sanity check palettes must have same length
-				assert index_map[j] == len(new_palette)
-			new_palette.append(color)
-		new_palettes.append(new_palette)
+	retained_palette_indices = set(colors_by_index.keys())
+	for palette in self.palettes:
+		palette[:] = [c for i, c in enumerate(palette) if i in retained_palette_indices]
+		assert len(palette) == len(retained_palette_indices)
 
-	for old_index, new_index in index_map.items():
+	for new_index, old_index in enumerate(sorted(retained_palette_indices)):
 		for record in colors_by_index[old_index]:
 			if hasattr(record, "colorID"):  # v0
 				record.colorID = new_index
@@ -2108,12 +2097,11 @@ def prune_post_subset(self, font, options):
 			else:
 				raise AssertionError(record)
 
-	self.palettes = new_palettes
 	self.numPaletteEntries = len(self.palettes[0])
 
 	if self.version == 1:
 		self.paletteEntryLabels = [
-			label for i, label in self.paletteEntryLabels if i in used_indices
+			label for i, label in self.paletteEntryLabels if i in retained_palette_indices
 		]
 	return bool(self.numPaletteEntries)
 
